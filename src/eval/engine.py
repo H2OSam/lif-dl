@@ -373,11 +373,14 @@ class DataLoader:
         """
         sources = {}
         
-        # Load spatial sources (always available)
+        # Load sources
         sources['ims'] = self.load_ims(site)
         sources['lif_dl'] = self.load_lif_dl(site)
         sources['flake'] = self.load_flake(site)
-        sources['cis'] = self.load_cis(site)
+        try:
+            sources['cis'] = self.load_cis(site)
+        except FileNotFoundError:
+            sources['cis'] = None
         
         return sources
     
