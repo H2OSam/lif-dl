@@ -244,19 +244,34 @@ If you use this code or data in your research, please cite:
 - **GLDB Bathymetry**: Global Lake Database  
   http://www.flake.igb-berlin.de/old/ep-data.shtml
   
-- **Canadian Ice Service**: Weekly ice charts available from the Canadian Ice Service
+- **Canadian Ice Service**: Weekly ice charts available upon request from the Canadian Ice Service https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations/about-ice-service.html
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License
+
+Copyright (c) 2025 H2O Geomatics
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## Acknowledgments
 
-The authors would like to thank the Digital Research Alliance of Canada (DRAC), who supported this work through a high-performance computing resource allocation.
-<!-- NSERC GOES HERE -->
+The authors would like to acknowledge the support of the Natural Sciences and Engineering Research Council of Canada and the Digital Research Alliance of Canada.
 
-## Contact
-
-For questions or issues:
-- **Repository**: https://github.com/h2o-geomatics/Ice_Cover_Modelling
-- **Issues**: https://github.com/h2o-geomatics/Ice_Cover_Modelling/issues
+Author: Samuel Johnston
