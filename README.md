@@ -46,6 +46,12 @@ conda activate lif_dl
 pip install -e .
 ```
 
+### 4. Download the related data
+Model data along with preprocessed lake datasets are available through Zenodo:
+**DOI**: https://doi.org/10.5281/zenodo.17543536
+
+Download the data archive lif_dl_data.tar.gz and extract into this directory to get started. Take note of the expected project structure below, as the folders within the archive are not natively in this layout.
+
 ## Project Structure
 
 ```
