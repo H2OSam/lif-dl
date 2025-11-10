@@ -2,7 +2,7 @@
 
 The preprocessed NetCDF files for each lake are available from Zenodo.
 
-**Download link**: [Will be added after Zenodo upload]
+**DOI**: 10.5281/zenodo.17543536
 
 Each file contains meteorological forcing, ice observations, and bathymetry data aligned spatially and temporally.
 
