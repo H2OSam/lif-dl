@@ -1,0 +1,43 @@
+# DEBUG CONFIGURATION
+# These are the parameters used for quick debugging runs
+random_seed: 72
+data_dir: "./data/nc/"
+sites:
+  - "great_slave_lake"
+  - "great_bear_lake"
+  - "lake_athabasca"
+  - "lake_winnipeg"
+  - "reindeer_lake"
+variables:
+  - "temperature_2m"
+  - "surface_solar_radiation_downwards_sum"
+  - "total_precipitation_sum"
+  - "relative_humidity"
+  - "total_cloud_cover"
+  - "wind_speed_10m"
+  - "lake_depth"
+  - "accumulated_freezing_dd"
+  - "accumulated_thawing_dd"
+sequence_length: 7
+
+# LOGGING CONFIGURATION
+logging:
+  use_wandb: true                       # Enable/disable WandB logging
+  wandb_project: "Ice_Cover_Modelling"  # WandB project name
+  wandb_entity: null                    # WandB username/team (null = use default)
+  offline: false                        # Run WandB in offline mode
+
+# TRAINING PARAMETERS
+model: "LIF_DL"  # Model architecture to use
+hidden: 64
+dropout: 0.1
+optim: "Adam"
+num_transformers: 1
+lr: 0.0001
+weight_decay: 0.001
+batch_size: 8
+epochs: 1  # Number of epochs to run per training session (resumable indefinitely)
+
+# Date Range for Debugging - these define the target dates for training/evaluation
+start_date: "2004-03-03" # earlier date to allow for historical data
+end_date: "2004-12-31"
