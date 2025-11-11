@@ -8,7 +8,7 @@ Code and data used for the research study.
 
 ## Overview
 
-LIF-DL (Lake Ice Forecasting with Deep Learning) is a PyTorch-based model that can predict lake ice cover across entire lake surfaces in a single-shot approach.
+LIF-DL (Lake Ice Forecasting with Deep Learning) is a PyTorch-based model that can predict lake ice cover across entire lake surfaces in a single-shot approach by leveraging:
 - **Meteorological inputs**: Temperature, solar radiation, precipitation, wind speed, humidity, cloud cover, accumulated degree days
 - **Static features**: Lake bathymetry
 - **Previous ice state**: Ice cover conditions leading up to the forecast date(s)
@@ -46,16 +46,16 @@ conda activate lif_dl
 pip install -e .
 ```
 
-### 4. Download the related data
+### 4. Download associated data (for reproducibility)
 Model data along with preprocessed lake datasets are available through Zenodo:
-**DOI**: https://doi.org/10.5281/zenodo.17543536
+https://doi.org/10.5281/zenodo.17543536
 
 Download the data archive lif_dl_data.tar.gz and extract into this directory to get started. Take note of the expected project structure below, as the folders within the archive are not natively in this layout.
 
 ## Project Structure
 
 ```
-Ice_Cover_Modelling/
+lif-dl/
 ├── configs/                   # Configuration files
 │   ├── default.yaml             # Default training configuration
 │   └── debug.yaml               # Debug configuration for testing
@@ -73,8 +73,8 @@ Ice_Cover_Modelling/
 │   ├── evaluate.py              # Run evaluation metrics
 │   └── variable_importance.py   # Variable importance analysis
 ├── notebooks/                 # Jupyter notebooks
-│   ├── 00_load_model.ipynb      # Model loading examples
-│   └── 01_create_plots.ipynb    # Results visualization
+│   ├── deploy_trained_model.ipynb      # Load a trained model and experiment with running inference
+│   └── result_figures.ipynb            # Re-create the figures and tables from the research article
 ├── results/                   # Model outputs and evaluations
 ```
 
@@ -88,7 +88,7 @@ Train the model using the default configuration:
 python scripts/train.py --config configs/default.yaml --name [YOUR-MODEL-NAME]
 ```
 
-For a quick test run with reduced data:
+Or for a quick test run with reduced data use the debug config:
 
 ```bash
 python scripts/train.py --config configs/debug.yaml --name [YOUR-MODEL-NAME]
@@ -113,7 +113,7 @@ wandb login
 3. Enable wandb logging in your config file:
 ```yaml
 use_wandb: true
-wandb_project: "lake-ice-forecasting"
+wandb_project: "lif-dl"
 wandb_entity: "your-username"  # Optional
 ```
 
@@ -193,31 +193,6 @@ python scripts/compute_variable_importance.py --name LIF_DL_Best
 
 This analyzes how much each meteorological variable contributes to predictions, with separate scores for overall, break-up, and freeze-up periods.
 
-### Visualization
-
-### Input Data Structure
-
-The model expects NetCDF files in `data/nc/` with the following variables:
-- `temperature_2m`: 2-meter air temperature (K)
-- `surface_solar_radiation_downwards_sum`: Solar radiation (J/m²)
-- `total_precipitation_sum`: Precipitation (m)
-- `wind_speed_10m`: Wind speed (m/s)
-- `relative_humidity`: Relative humidity (0-1)
-- `total_cloud_cover`: Cloud cover fraction (0-1)
-- `accumulated_freezing_dd`: Accumulated freezing degree days (K)
-- `accumulated_thawing_dd`: Accumulated thawing degree days (K)
-- `lake_depth`: Lake depth (m)
-- `IMS_Surface_Values`: Ice cover observations (0=water, 1=ice, 2=land)
-- `lake_mask`: Lake boundary mask (0=land, 1=lake)
-- `flake_ice_depth`: FLake ice thickness (m)
-
-Dimensions: `(time, y, x)` where spatial dimensions are 128×128 pixels.
-
-### Observation Data
-
-- **IMS**: Daily gridded ice observations from NSIDC
-- **CIS**: Weekly ice charts (CSV format in `data/cis/`)
-
 <!-- 
 ## Citation
 
@@ -232,7 +207,7 @@ If you use this code or data in your research, please cite:
 }
 ``` -->
 
-## Data Availability
+## Data References
 
 - **IMS Data**: Retrieved from the National Snow and Ice Data Center  
   https://doi.org/10.7265/N52R3PMC (4km IMS data, 2004-2021)
