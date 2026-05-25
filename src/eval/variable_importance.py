@@ -18,15 +18,20 @@ Methodology:
 """
 
 import pickle
+import calendar
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import pandas as pd
 import torch
 from tqdm import tqdm
 
 from src.data.data_module import create_dataset
 from src.model.model import load_model
-from src.utils.constants import get_season
+from src.utils.constants import (
+    BREAKUP_SEASON,
+    FREEZEUP_SEASON,
+    get_season,
+)
 
 
 class VariableImportanceCalculator:
@@ -69,6 +74,11 @@ class VariableImportanceCalculator:
         # Model and statistics
         self.model = None
         self.across_site_stats = None
+
+        # Cached outputs
+        self.temporal_wide_df = None
+        self.temporal_counts_df = None
+        self.legacy_results_df = None
         
     def load_model_and_stats(self):
         """Load the trained model and dataset statistics."""
@@ -107,11 +117,7 @@ class VariableImportanceCalculator:
         Returns:
             Dictionary mapping variable names to normalized importance scores
         """
-        # Average across sequence length
-        importance_avg = importances.mean(dim=1)
-        
-        # Normalize to sum to 1
-        importance_normalized = importance_avg / torch.sum(importance_avg)
+        importance_normalized = self._normalize_tensor(importances)
         
         # Convert to numpy
         importance_values = importance_normalized.numpy()
@@ -120,6 +126,22 @@ class VariableImportanceCalculator:
         importance_dict = dict(zip(self.variables, importance_values))
         
         return importance_dict
+
+    def _normalize_tensor(self, importances: torch.Tensor) -> torch.Tensor:
+        """Normalize a temporal-range importance tensor to sum to 1 across variables."""
+        importance_avg = importances.mean(dim=1)
+        denominator = torch.sum(importance_avg)
+        if torch.abs(denominator) < 1e-12:
+            return torch.zeros_like(importance_avg)
+        return importance_avg / denominator
+
+    def _season_months(self, season_config: Dict[str, int]) -> List[int]:
+        """Return month numbers covered by a season config."""
+        start_month = season_config['start_month']
+        end_month = season_config['end_month']
+        if start_month <= end_month:
+            return list(range(start_month, end_month + 1))
+        return list(range(start_month, 13)) + list(range(1, end_month + 1))
     
     def calculate_all_importances(
         self,
@@ -146,7 +168,7 @@ class VariableImportanceCalculator:
         print("\n" + "="*70)
         print("COMPUTING VARIABLE IMPORTANCE")
         print("="*70)
-        print("Processing each sample once and binning by season...")
+        print("Processing each sample once and binning by month and season...")
         
         # Create dataset for full test period
         dataset = create_dataset(self.config, test_start, test_end)
@@ -161,6 +183,15 @@ class VariableImportanceCalculator:
         overall_importances = torch.zeros(n_met_vars, self.sequence_length)
         breakup_importances = torch.zeros(n_met_vars, self.sequence_length)
         freezeup_importances = torch.zeros(n_met_vars, self.sequence_length)
+        breakup_count = 0
+        freezeup_count = 0
+
+        month_names = [calendar.month_abbr[m] for m in range(1, 13)]
+        monthly_importances = {
+            month_name: torch.zeros(n_met_vars, self.sequence_length)
+            for month_name in month_names
+        }
+        monthly_count = {month_name: 0 for month_name in month_names}
         
         # Define loss function
         from src.model.model import TrainingLoss
@@ -203,17 +234,23 @@ class VariableImportanceCalculator:
             
             # Accumulate into appropriate bins
             overall_importances += grad_importance.cpu()
+            month_name = calendar.month_abbr[date.month]
+            monthly_importances[month_name] += grad_importance.cpu()
+            monthly_count[month_name] += 1
+
             if season == 'breakup':
                 breakup_importances += grad_importance.cpu()
+                breakup_count += 1
             elif season == 'freezeup':
                 freezeup_importances += grad_importance.cpu()
+                freezeup_count += 1
             
             # Clear gradients
             input_seq.grad = None
         
         print(f"\n✓ Processed all {len(dataset)} samples")
         
-        # Normalize importance scores (only meteorological variables)
+        # Normalize importance scores for legacy output (only meteorological variables)
         overall_dict = self.normalize_importance(overall_importances)
         breakup_dict = self.normalize_importance(breakup_importances)
         freezeup_dict = self.normalize_importance(freezeup_importances)
@@ -225,8 +262,81 @@ class VariableImportanceCalculator:
             'Breakup': [breakup_dict[var] for var in self.variables],
             'Freezeup': [freezeup_dict[var] for var in self.variables]
         })
+
+        # Temporal-range normalized wide output
+        breakup_months = self._season_months(BREAKUP_SEASON)
+        freezeup_months = self._season_months(FREEZEUP_SEASON)
+
+        breakup_month_names = [calendar.month_abbr[m] for m in breakup_months]
+        freezeup_month_names = [calendar.month_abbr[m] for m in freezeup_months]
+
+        breakup_aggregate = torch.zeros(n_met_vars, self.sequence_length)
+        freezeup_aggregate = torch.zeros(n_met_vars, self.sequence_length)
+        breakup_aggregate_count = 0
+        freezeup_aggregate_count = 0
+
+        for month_name in breakup_month_names:
+            breakup_aggregate += monthly_importances[month_name]
+            breakup_aggregate_count += monthly_count[month_name]
+
+        for month_name in freezeup_month_names:
+            freezeup_aggregate += monthly_importances[month_name]
+            freezeup_aggregate_count += monthly_count[month_name]
+
+        temporal_wide_df = pd.DataFrame({'Variable': self.variables})
+        for month_name in month_names:
+            if monthly_count[month_name] > 0:
+                month_avg = monthly_importances[month_name] / monthly_count[month_name]
+            else:
+                month_avg = torch.zeros_like(monthly_importances[month_name])
+
+            temporal_wide_df[month_name] = self._normalize_tensor(month_avg).numpy()
+
+        if breakup_aggregate_count > 0:
+            breakup_avg = breakup_aggregate / breakup_aggregate_count
+        else:
+            breakup_avg = torch.zeros_like(breakup_aggregate)
+
+        if freezeup_aggregate_count > 0:
+            freezeup_avg = freezeup_aggregate / freezeup_aggregate_count
+        else:
+            freezeup_avg = torch.zeros_like(freezeup_aggregate)
+
+        temporal_wide_df['Breakup'] = self._normalize_tensor(breakup_avg).numpy()
+        temporal_wide_df['Freezeup'] = self._normalize_tensor(freezeup_avg).numpy()
+
+        temporal_counts_df = pd.DataFrame(
+            {
+                'TemporalRange': month_names + ['Breakup', 'Freezeup'],
+                'NumSamples': [monthly_count[m] for m in month_names] + [
+                    breakup_aggregate_count,
+                    freezeup_aggregate_count,
+                ]
+            }
+        )
+
+        self.temporal_wide_df = temporal_wide_df
+        self.temporal_counts_df = temporal_counts_df
+        self.legacy_results_df = results_df
+
+        print(
+            f"Temporal sample counts: breakup={breakup_count}, freezeup={freezeup_count}, "
+            f"monthly_total={sum(monthly_count.values())}"
+        )
         
         return results_df
+
+    def get_temporal_wide_results(self) -> pd.DataFrame:
+        """Return normalized wide-format temporal variable importance results."""
+        if self.temporal_wide_df is None:
+            raise RuntimeError("Temporal results are not available. Run calculate_all_importances first.")
+        return self.temporal_wide_df
+
+    def get_temporal_counts(self) -> pd.DataFrame:
+        """Return sample counts by temporal range used for temporal variable importance."""
+        if self.temporal_counts_df is None:
+            raise RuntimeError("Temporal counts are not available. Run calculate_all_importances first.")
+        return self.temporal_counts_df
     
     def save_results(
         self,
@@ -307,6 +417,15 @@ def compute_variable_importance(
     
     # Print results
     calculator.print_results(results_df)
+
+    temporal_wide_df = calculator.get_temporal_wide_results()
+    temporal_counts_df = calculator.get_temporal_counts()
+
+    print("\n" + "="*70)
+    print("TEMPORAL VARIABLE IMPORTANCE (NORMALIZED WIDE)")
+    print("="*70)
+    print(temporal_wide_df.head().to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print("="*70)
     
     # Save results
     if output_dir is None:
@@ -314,5 +433,9 @@ def compute_variable_importance(
     
     output_path = Path(output_dir) / "variable_importance.csv"
     calculator.save_results(results_df, output_path)
-    
+
+    temporal_output_path = Path(output_dir) / "variable_importances_normalized.csv"
+    temporal_wide_df.to_csv(temporal_output_path, index=False)
+    print(f"Temporal normalized wide results saved to: {temporal_output_path}")
+
     return results_df

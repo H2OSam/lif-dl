@@ -24,7 +24,9 @@ from .constants import (
 
 from .plotting import (
     plot_variable_importance_grouped,
+    plot_variable_importance_monthly_heatmap,
     plot_spatial_timing_maps,
+    plot_spatial_model_error_maps,
     plot_local_morans_i,
     plot_fic_temporal_evolution,
 )
@@ -43,7 +45,9 @@ __all__ = [
     'FLAKE_ICE_THRESHOLD',
     # Plotting
     'plot_variable_importance_grouped',
+    'plot_variable_importance_monthly_heatmap',
     'plot_spatial_timing_maps',
+    'plot_spatial_model_error_maps',
     'plot_local_morans_i',
     'plot_fic_temporal_evolution',
 ]

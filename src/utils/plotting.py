@@ -8,6 +8,7 @@ used in evaluation and analysis of lake ice forecasts.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from matplotlib.colors import ListedColormap
 
 
@@ -63,10 +64,10 @@ def plot_variable_importance_grouped(vi_df, variable_order=None, variable_labels
     
     # Create grouped bars
     bars1 = ax.bar(x - width/2, freezeup_vals, width, 
-                   label='Freeze-up', color='tab:blue', 
+                   label='Freeze-up (Sep-Dec)', color='tab:blue', 
                    edgecolor='black', zorder=3)
     bars2 = ax.bar(x + width/2, breakup_vals, width, 
-                   label='Break-up', color='firebrick', 
+                   label='Break-up (Apr-Jul)', color='firebrick', 
                    edgecolor='black', zorder=3)
     
     # Customize the plot
@@ -104,6 +105,116 @@ def plot_variable_importance_grouped(vi_df, variable_order=None, variable_labels
     if save_path:
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
     
+    return fig
+
+
+def plot_variable_importance_monthly_heatmap(vi_df, variable_order=None, variable_labels=None, save_path=None):
+    """
+    Create a monthly variable-importance heatmap (variables x months).
+
+    Parameters
+    ----------
+    vi_df : pd.DataFrame
+        DataFrame containing monthly variable importance in wide format with a
+        'Variable' column and month columns.
+    variable_order : list, optional
+        Custom order for variables. If None, uses the order from DataFrame.
+    variable_labels : dict, optional
+        Custom display labels for variables. Keys should match variable names,
+        values are display labels. If None, uses original variable names.
+    save_path : str, optional
+        Path to save the figure. If None, figure is not saved.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The created figure.
+    """
+    plt.rcParams['font.family'] = 'serif'
+
+    data = vi_df.copy()
+
+    if 'Variable' in data.columns:
+        data = data.set_index('Variable')
+    else:
+        data = data.set_index(data.columns[0])
+
+    variables_to_exclude = ["lake_water", "lake_ice", "land"]
+    data = data.drop(index=variables_to_exclude, errors='ignore')
+
+    if variable_order is not None:
+        variable_order = [var for var in variable_order if var in data.index]
+        if variable_order:
+            data = data.reindex(variable_order)
+
+    month_order = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]
+    ordered_cols = [month for month in month_order if month in data.columns]
+    data = data[ordered_cols]
+
+    if variable_labels is not None:
+        data = data.rename(index=variable_labels)
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.heatmap(
+        data,
+        cmap="cividis",
+        vmin=0,
+        vmax=0.50,
+        linewidths=0.3,
+        annot=True,
+        fmt=".2f",
+        annot_kws={"size": 10},
+        cbar_kws={"label": "Relative Importance\n(normalized by month)", "pad": 0.02},
+        ax=ax
+    )
+
+    if {'Sep', 'Dec', 'Apr', 'Jul'}.issubset(set(ordered_cols)):
+        freeze_start = ordered_cols.index('Sep')
+        freeze_end = ordered_cols.index('Dec')
+        breakup_start = ordered_cols.index('Apr')
+        breakup_end = ordered_cols.index('Jul')
+
+        freeze_x0, freeze_x1 = freeze_start + 0.5, freeze_end + 0.5
+        breakup_x0, breakup_x1 = breakup_start + 0.5, breakup_end + 0.5
+
+        line_y = -0.08
+        text_y = -0.10
+
+        ax.plot([freeze_x0, freeze_x1], [line_y, line_y], transform=ax.get_xaxis_transform(), color='blue', lw=2, clip_on=False)
+        ax.plot([breakup_x0, breakup_x1], [line_y, line_y], transform=ax.get_xaxis_transform(), color='red', lw=2, clip_on=False)
+
+        ax.text(
+            (freeze_start + freeze_end) / 2 + 0.5,
+            text_y,
+            'Freeze-up (Sep-Dec)',
+            transform=ax.get_xaxis_transform(),
+            ha='center',
+            va='top',
+            fontsize=8,
+            color='blue',
+            clip_on=False
+        )
+        ax.text(
+            (breakup_start + breakup_end) / 2 + 0.5,
+            text_y,
+            'Break-up (Apr-Jul)',
+            transform=ax.get_xaxis_transform(),
+            ha='center',
+            va='top',
+            fontsize=8,
+            color='red',
+            clip_on=False
+        )
+
+    # ax.set_title("Monthly Relative Variable Importance", pad=12)
+    ax.set_ylabel("")
+    plt.xticks(rotation=0)
+    plt.yticks(rotation=0)
+    plt.tight_layout(rect=[0, 0.10, 1, 1])
+
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
     return fig
 
 
@@ -156,7 +267,7 @@ def plot_spatial_timing_maps(spatial_data, season='BUS', spatial_df=None, lake_o
     
     # Source information
     sources = ["lif_dl", "ims", "flake"]
-    source_labels = ["LIF-DL", "IMS", "FLake (ERA5)"]
+    source_labels = ["LIF-DL\n(proposed)", "IMS\n(observation)", "FLake\n(baseline)"]
     
     # Select the timing variable based on season
     timing_var = 'bus_timing' if season == 'BUS' else 'fus_timing'
@@ -293,7 +404,7 @@ def plot_local_morans_i(spatial_data, season='BUS', spatial_df=None, lake_order=
     
     # Source information
     sources = ["lif_dl", "ims", "flake"]
-    source_labels = ["LIF-DL", "IMS", "FLake (ERA5)"]
+    source_labels = ["LIF-DL\n(proposed)", "IMS\n(observation)", "FLake\n(baseline)"]
     
     # Select the LMI cluster variable based on season
     lmi_var = 'bus_lmi_clusters' if season == 'BUS' else 'fus_lmi_clusters'
@@ -365,6 +476,133 @@ def plot_local_morans_i(spatial_data, season='BUS', spatial_df=None, lake_order=
     return fig
 
 
+def plot_spatial_model_error_maps(spatial_data, season='BUS', lake_order=None, save_path=None):
+    """
+    Create model-minus-IMS spatial timing error maps.
+
+    Parameters
+    ----------
+    spatial_data : dict
+        Dictionary containing spatial data for each lake and source.
+    season : str
+        'BUS' for Break-up Start or 'FUS' for Freeze-up Start.
+    lake_order : list, optional
+        Order of lakes for display. If None, uses keys from spatial_data.
+    save_path : str, optional
+        Path to save the figure. If None, figure is not saved.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The created figure.
+    """
+    plt.rcParams['font.family'] = 'serif'
+
+    zooms = {
+        "Great_Bear_Lake": 15,
+        "Great_Slave_Lake": 25,
+        "Lake_Athabasca": 18,
+        "Reindeer_Lake": 25,
+        "Lake_Winnipeg": 0
+    }
+
+    if lake_order is None:
+        lake_order = list(spatial_data.keys())
+
+    fig, axes = plt.subplots(
+        nrows=2,
+        ncols=5,
+        figsize=(18, 5.5),
+        constrained_layout=True,
+        gridspec_kw={"wspace": 0.05}
+    )
+
+    cmap = plt.get_cmap("RdBu_r")
+    cmap.set_bad(color='gray', alpha=0.7)
+    vmin, vmax = -14, 14
+
+    timing_var = 'bus_timing' if season == 'BUS' else 'fus_timing'
+    sources = ["lif_dl", "flake"]
+    source_labels = ["LIF-DL - IMS", "FLake - IMS"]
+
+    im = None
+
+    for row, (source, label) in enumerate(zip(sources, source_labels)):
+        for col, lake in enumerate(lake_order):
+            ax = axes[row, col]
+            z = zooms.get(lake, 0)
+
+            if (
+                lake not in spatial_data or
+                source not in spatial_data[lake] or
+                "ims" not in spatial_data[lake]
+            ):
+                ax.axis("off")
+                continue
+
+            model_map = spatial_data[lake][source][timing_var].values
+            ims_map = spatial_data[lake]["ims"][timing_var].values
+            error_map = model_map - ims_map
+
+            if z > 0:
+                error_map = error_map[z:-z, z:-z]
+
+            im = ax.pcolormesh(error_map, cmap=cmap, vmin=vmin, vmax=vmax)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            mae_days = np.nanmean(np.abs(error_map))
+            if not np.isnan(mae_days):
+                ax.text(
+                    0.04,
+                    0.10,
+                    f"MAE: {mae_days:.2f} d",
+                    transform=ax.transAxes,
+                    horizontalalignment='left',
+                    verticalalignment='top',
+                    fontsize=14,
+                    color='black'
+                )
+
+            for spine in ax.spines.values():
+                spine.set_visible(True)
+                spine.set_linewidth(0.75)
+
+            if row == 0:
+                ax.set_title(lake.replace("_", " "), fontsize=20, weight="bold")
+            if col == 0:
+                ax.set_ylabel(label, fontsize=18, weight="bold")
+
+    if im is not None:
+        cbar = fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.01)
+        cbar.set_label("Model - IMS Timing Error", fontsize=18)
+        cbar.set_ticks(np.linspace(vmin, vmax, 5))
+        cbar.ax.tick_params(labelsize=14)
+        cbar.ax.text(
+            0.9,
+            -0.05,
+            "earlier than IMS",
+            va='bottom',
+            ha='center',
+            fontsize=12,
+            transform=cbar.ax.transAxes
+        )
+        cbar.ax.text(
+            0.9,
+            1.05,
+            "later than IMS",
+            va='top',
+            ha='center',
+            fontsize=12,
+            transform=cbar.ax.transAxes
+        )
+
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    return fig
+
+
 def plot_fic_temporal_evolution(fic_data, lake_order, save_path=None):
     """
     Create visualization of Fraction Ice Cover temporal evolution.
@@ -401,28 +639,28 @@ def plot_fic_temporal_evolution(fic_data, lake_order, save_path=None):
             'color': 'black',
             'label': 'IMS',
             'linestyle': '-',
-            'linewidth': 2,
-            'alpha': 0.8
+            'linewidth': 2.0,
+            'alpha': 0.7
         },
         'cis': {
-            'color': 'royalblue',
+            'color': "#2870DD",
             'label': 'CIS',
             'linestyle': '-',
-            'linewidth': 2,
-            'alpha': 0.8
+            'linewidth': 2.0,
+            'alpha': 0.7
         },
         'flake': {
-            'color': 'orangered',
+            'color': "#6B13CF",
             'label': 'FLake',
             'linestyle': ':',
-            'linewidth': 3,
+            'linewidth': 3.0,
             'alpha': 0.7
         },
         'lif_dl': {
-            'color': 'firebrick',
+            'color': '#d62728',
             'label': 'LIF-DL',
-            'linestyle': '--',
-            'linewidth': 3,
+            'linestyle': '-.',
+            'linewidth': 3.0,
             'alpha': 0.7
         }
     }

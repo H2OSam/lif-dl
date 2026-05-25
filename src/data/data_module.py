@@ -609,22 +609,21 @@ class Ice_Cover_Dataset(Dataset):
             # Number of samples for this site
             num_samples = len(self.target_dates)
             
-            # Try to load the required date range
+            # Load source dataset
+            source_ds = xr.open_dataset(
+                f"{self.directory}{site}.nc",
+                engine="h5netcdf"
+            )
+
+            # Select required date range (coverage check)
             try:
-                site_data = xr.open_dataset(
-                    f"{self.directory}{site}.nc", 
-                    engine="h5netcdf"
-                ).sel(time=pd.date_range(earliest_needed, latest_needed, freq='D')
-                )[self.vars + ['lake_mask', 'IMS_Surface_Values', 'flake_ice_depth']]
-                
+                site_data = source_ds.sel(
+                    time=pd.date_range(earliest_needed, latest_needed, freq='D')
+                )
             except KeyError as e:
                 # Provide helpful error message
-                available_data = xr.open_dataset(
-                    f"{self.directory}{site}.nc", 
-                    engine="h5netcdf"
-                )
-                min_available = pd.Timestamp(available_data.time.values.min())
-                max_available = pd.Timestamp(available_data.time.values.max())
+                min_available = pd.Timestamp(source_ds.time.values.min())
+                max_available = pd.Timestamp(source_ds.time.values.max())
                 
                 raise ValueError(
                     f"Insufficient data for site '{site}' to satisfy requested coverage.\n"
@@ -643,6 +642,18 @@ class Ice_Cover_Dataset(Dataset):
                     f"  - Move start_date forward to at least {min_available + pd.Timedelta(days=self.seq_length)}\n"
                     f"  - Move end_date back to at most {max_available}\n"
                 ) from e
+
+            # Validate that all requested variables are present in the dataset
+            required_vars = self.vars + ['lake_mask', 'IMS_Surface_Values', 'flake_ice_depth']
+            missing_vars = [var for var in required_vars if var not in source_ds.data_vars]
+            if missing_vars:
+                available_vars = sorted(list(source_ds.data_vars))
+                raise ValueError(
+                    f"Missing required variables for site '{site}': {missing_vars}\n"
+                    f"Available variables: {available_vars}"
+                )
+
+            site_data = site_data[self.vars + ['lake_mask', 'IMS_Surface_Values', 'flake_ice_depth']]
             
             # Calculate additional variables
             site_data = site_data.assign(
@@ -662,8 +673,6 @@ class Ice_Cover_Dataset(Dataset):
             
             # Extract constants
             self.lake_masks[site] = site_data['lake_mask'].values
-            if 'bathymetry' in self.vars:
-                self.bathymetry[site] = site_data['bathymetry'].values
             
             # Load into memory
             self.dataset[site] = site_data.sortby('time').load()
