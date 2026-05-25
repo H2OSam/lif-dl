@@ -157,11 +157,11 @@ def calculate_transitions(pred_classes, dates):
     """
     # Convert dates to Timestamp
     dates = convert_to_timestamp(dates)
-    
+
     # Calculate transitions using np.diff
     # Transitions indicate changes between ice cover classes
     diff = np.diff(pred_classes)
-    
+
     # Identify transition types:
     # Breakup transitions (ice → water):
     #   - diff == -2: class 2→0 (full ice to open water)

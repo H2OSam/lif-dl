@@ -33,10 +33,10 @@ FLAKE_ICE_THRESHOLD = 0.001  # 1mm
 def get_season(date):
     """Determine the season (breakup or freezeup) for a given date."""
     month = date.month
-     
+
     if BREAKUP_SEASON['start_month'] <= month <= BREAKUP_SEASON['end_month']:
         return 'breakup'
-    
+
     if FREEZEUP_SEASON['end_month'] < FREEZEUP_SEASON['start_month']:
         # Season spans year-end
         if month >= FREEZEUP_SEASON['start_month'] or month <= FREEZEUP_SEASON['end_month']:
@@ -44,5 +44,5 @@ def get_season(date):
     else:
         if FREEZEUP_SEASON['start_month'] <= month <= FREEZEUP_SEASON['end_month']:
             return 'freezeup'
-    
+
     return 'unknown'

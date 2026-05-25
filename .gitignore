@@ -38,3 +38,5 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+user_manual.pdf
+README.html
